@@ -5,7 +5,6 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MONGODB_URI=mongodb+srv://donotgetinmyway:eQMqmVWA6odw2amk@cluster0.szfxjhj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
       - SECRET_KEY=your-secret-key-change-this-in-production
     volumes:
       - ./backend:/app
