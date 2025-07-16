@@ -2,11 +2,12 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
+from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 
@@ -18,8 +19,33 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 
-# Initialize FastAPI app
-app = FastAPI(title="Well-Being Tracker API", version="1.0.0")
+# Global variables for database connection
+client = None
+db = None
+
+# Password hashing - Using bcrypt instead of argon2 for better Docker compatibility
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+# Lifespan event handler
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    global client, db
+    client = AsyncMongoClient(MONGODB_URI)
+    db = client.wellbeing_tracker
+    print("Connected to MongoDB")
+
+    yield
+
+    # Shutdown
+    if client:
+        await client.close()
+        print("Disconnected from MongoDB")
+
+
+# Initialize FastAPI app with lifespan
+app = FastAPI(title="Well-Being Tracker API", version="1.0.0", lifespan=lifespan)
 
 # CORS middleware
 app.add_middleware(
@@ -29,13 +55,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# MongoDB connection
-client = AsyncIOMotorClient(MONGODB_URI)
-db = client.wellbeing_tracker
 
 # Security
 security = HTTPBearer()
